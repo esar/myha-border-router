@@ -1,0 +1,13 @@
+IPE2builder
+Changes in version 140122
+
+* Changelog.txt (this file) appeared
+* Makefile appeared, it just calls the build script for convenience - their parameters are all the same
+* uclibc-config file appeared, enabled ld cache and dynamic linker support in uclibc
+* internal changes in build script +
+  * build command "download" now downloads only the buildroot source, to be able to customize
+  * new build command "download-all" (or download_all or downloadall) downloads ALL required packages for an offline build
+  * build command umount or unmount works as well now
+* buildroot now compiles Raspberry PI kernel, firmware and userland files
+* ipe2-config file simplified
+* typo in ipe2-version file fixed, file updated

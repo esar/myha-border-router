@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Start telnetd for IPE2
+#
+
+case "$1" in
+  start)
+	echo "Starting telnetd..."
+	/usr/sbin/telnetd
+	;;
+  stop)
+	echo -n "Stopping telnetd..."
+	/usr/bin/killall -q telnetd
+	;;
+  restart|reload)
+	"$0" stop
+	"$0" start
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+

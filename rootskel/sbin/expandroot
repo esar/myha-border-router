@@ -1,0 +1,41 @@
+#!/bin/sh
+#expandroot script for IPE2 by NutCom Services, Inc. 2013.
+#This software is GPLv2 licensed!
+#See http://nutcom.hu/ipe2/
+
+echo =================================================================
+echo This script will enlarge the second partition of the SD card to
+echo the maximum possible size, then reboot the device and resize
+echo the filesytem. This may break something, proceed with caution!
+echo ""
+echo Press Return to enlarge root partition or Ctrl+C to quit!
+echo =================================================================
+read return
+#start offset of 2nd partition
+STO=`fdisk -l /dev/mmcblk0 | grep mmcblk0p2 | awk '{print $2}'`
+fdisk /dev/mmcblk0 >/dev/null 2>&1 <<EOF
+d
+2
+n
+p
+2
+$STO
+
+w
+EOF
+mount / -o remount,rw
+cat >/etc/init.d/S11expandroot <<EOF
+#!/bin/sh
+#script to resize filesystem in IPE2 when starting up
+if [ "\$1" == "start" ]; then
+ echo "Resizing root filesystem..."
+ mount / -o remount,rw
+ resize2fs /dev/mmcblk0p2
+ rm -f /etc/init.d/S11expandroot
+ #need to do one more reboot - can not remount RO at this state
+ reboot
+fi
+EOF
+chmod 755 /etc/init.d/S11expandroot
+mount / -o remount,ro
+reboot

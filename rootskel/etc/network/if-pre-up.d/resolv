@@ -1,0 +1,3 @@
+#!/bin/sh
+#Create resolv.conf - suppress error message in IPE2
+/bin/touch /tmp/resolv.conf

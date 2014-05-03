@@ -1,0 +1,12 @@
+#IPE2builder by NutCom Services, Inc. 2013.
+#This software is GPLv2 licensed!
+#See http://nutcom.hu/ipe2/
+
+#Image filename to be created
+IMGF="myha.img"
+#Image size in megs to be created
+#Note: FAT partition will be 24M - edit after fdisk line if needed
+IMGS="120"
+
+#buildroot version
+BRVER="buildroot-2013.11"

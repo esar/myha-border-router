@@ -1,0 +1,288 @@
+#!/bin/bash
+#IPE2builder by NutCom Services, Inc. 2013.
+#This software is GPLv2 licensed!
+#See http://nutcom.hu/ipe2/
+
+#include configuration parameters
+. ./ipe2-config
+
+#downloads directory to be created
+DLDIR=`grep BR2_DL_DIR buildroot-config | cut -d'"' -f2`
+DLDIR=`basename $DLDIR`
+
+SEP="========================================================================="
+
+echo $SEP
+
+#Check error code, exit if needed
+retexit() {
+if [ $1 -ne 0 ]; then
+	echo $2
+	echo $SEP
+	exit $1
+fi
+}
+
+#called twice: in normal or download run, or when called with clean
+unpackbr() {
+ echo "Unpacking buildroot source..."
+ tar -xjf $DLDIR/$BRVER.tar.bz2
+ cp -v buildroot-config $BRVER/.config
+ BUSYBOX_CONFIG=`grep BR2_PACKAGE_BUSYBOX_CONFIG buildroot-config | cut -d'"' -f2`
+ cp -v busybox-config $BRVER/$BUSYBOX_CONFIG
+ UCLIBC_CONFIG=`grep BR2_UCLIBC_CONFIG buildroot-config | cut -d'"' -f2`
+ cp -v uclibc-config $BRVER/$UCLIBC_CONFIG
+}
+
+#This downloads buildroot only
+download_br() {
+ #create download directory
+ mkdir -p $DLDIR
+ retexit $? "Cannot create download directory $DLDIR!"
+ #download & extract buildroot
+ if [ ! -f $BRVER/.defconfig ]; then
+  if [ ! -f $DLDIR/$BRVER.tar.bz2 ]; then
+   echo "Downloading buildroot source..."
+   cd $DLDIR
+   wget http://buildroot.uclibc.org/downloads/$BRVER.tar.bz2
+   retexit $? "Download failed!"
+   cd ..
+  else
+   echo "Buildroot source archive found!"
+  fi
+  unpackbr
+ else
+  echo "Buildroot sources already unpacked!"
+ fi
+}
+
+#This is called twice / so its a function
+unmountimg() {
+ umount p1
+ retexit $? "Unmount failed!"
+ umount p2
+ retexit $? "Unmount failed!"
+ rmdir p1 p2
+ partx -d /dev/loop0
+ losetup -d /dev/loop0
+}
+
+#help message
+if [ "$1" == "help" ]; then
+ echo "IPE2builder by NutCom Services, Inc. 2013."
+ echo "This software is GPLv2 licensed!"
+ echo "http://nutcom.hu/ipe2/"
+ echo ""
+ echo "Usage:"
+ echo "$0 help         - this message"
+ echo "$0 clean        - clean compiled files, keep downloaded ones"
+ echo "$0 distclean    - clean everything not in the original package"
+ echo "$0 download     - download buildroot so it can be customized"
+ echo "$0 download-all - download everything a build should need"
+ echo "$0 mount        - mount the prebuilt image"
+ echo "$0 unmount      - unmount the image"
+ echo "$0              - build the image (also download needed files)"
+ echo $SEP
+ exit
+fi
+
+#run the command with parameter "clean" to recompile without redownloading
+if [ "$1" == "clean" ]; then
+ echo "Running compilation cleanup..."
+ rm -rf $BRVER $IMGF
+ if [ -f $DLDIR/$BRVER.tar.bz2 ]; then
+  echo "Buildroot source archive found!"
+  unpackbr
+ else
+  echo "Buildroot source archive not found, not unpacking!"
+ fi
+ echo $SEP
+ exit
+fi
+
+#run the command with parameter "distclean" to start over
+if [ "$1" == "distclean" ]; then
+ echo "Running FULL cleanup..."
+ rm -rf $BRVER $IMGF $DLDIR
+ echo $SEP
+ exit
+fi
+
+if [ "$1" == "download" ]; then
+ echo "IPE2builder buildroot download starting..."
+ download_br
+ echo "Downloaded buildroot, now exiting."
+ echo "Please note, that compiling buildroot will initiate additional downloads,"
+ echo "unless you run \"download-all\"."
+ echo $SEP
+ exit
+fi
+
+if [ "$1" == "download-all" ] || [ "$1" == "download_all" ] || [ "$1" == "downloadall" ]; then
+ DLS=""
+
+ #This recursive function looks for every dependency of host-gcc-final for buildroot
+ get_depend() {
+  CUR=`make --no-print-directory $1-show-depends`
+  if [ -z "$CUR" ]; then
+   echo -n "."
+  else
+   for i in $CUR; do
+    if [[ "$DLS" == *"$i"* ]]; then
+     echo -n "."
+    else
+     echo -n "."
+     DLS="$DLS $i"
+     get_depend $i
+    fi
+   done
+  fi
+ }
+
+ echo "IPE2builder download all starting..."
+ download_br
+
+ cd $BRVER
+
+ #This is the package we start our search from
+ DLCMD="host-gcc-final"
+ echo "Calculating required packages..."
+ get_depend $DLCMD
+ echo "."
+
+ #We add -source to download the package
+ DLCMD="$DLCMD-source"
+ for i in $DLS; do
+  DLCMD="$DLCMD $i-source"
+ done
+
+ #and we do all the downloads in buildroot at once
+ make source $DLCMD
+
+ cd ..
+ echo "Downloaded everything, now exiting."
+ echo $SEP
+ exit
+fi
+
+#parameter "mount" just mounts the image (if exists)
+if [ "$1" == "mount" ]; then
+ if [ -f $IMGF ]; then
+  echo "Mounting image..."
+  losetup /dev/loop0 $IMGF
+  retexit $? "Loop device setup failed!"
+  partx -a /dev/loop0
+  retexit $? "Loop partition setup failed!"
+  mkdir -p p1 p2
+  retexit $? "Directory creation failed!"
+  mount /dev/loop0p1 p1
+  retexit $? "Mount failed!"
+  mount /dev/loop0p2 p2
+  retexit $? "Mount failed!"
+  echo $SEP
+  exit
+ else
+  echo "Image does not exist!"
+  echo $SEP
+  exit
+ fi
+fi
+
+#parameter "unmount" unmounts the image
+if [ "$1" == "unmount" ] || [ "$1" == "umount" ]; then
+ if [ -f $IMGF ]; then
+  echo "Unmounting image..."
+  unmountimg
+  echo $SEP
+  exit
+ else
+  echo "Image does not exist!"
+  echo $SEP
+  exit
+ fi
+fi
+
+#all possible parameters processed
+if [ -n "$1" ]; then
+ echo "Unknown parameter!"
+ echo "Try \"$0 help\" for some information."
+ echo $SEP
+ exit
+fi
+
+#The build script without parameters starts here
+echo "Welcome to IPE2builder! / by NutCom Services, Inc."
+echo ""
+echo "This program will build a custom IPE2 image."
+echo "See http://nutcom.hu/ipe2/ for more information or"
+echo "run this program with the parameter \"help\"."
+echo ""
+echo "Press Return to start or Ctrl+C to quit!"
+echo $SEP
+read return
+
+download_br
+
+#build rootfs
+echo "Building rootfs..."
+cd $BRVER
+make
+retexit $? "Build failed!"
+cd ..
+
+#create image and 2 partitions
+echo "Creating image..."
+dd if=/dev/zero of=$IMGF bs=1M count=$IMGS >/dev/null 2>&1
+retexit $? "Cannot create image $IMGF!"
+losetup /dev/loop0 $IMGF
+retexit $? "Loop device setup failed!"
+fdisk /dev/loop0 >/dev/null 2>&1 <<EOF
+n
+p
+1
+
++24M
+t
+c
+n
+p
+2
+
+
+w
+q
+EOF
+partx -a /dev/loop0
+retexit $? "Loop partition setup failed!"
+mkfs.vfat -I /dev/loop0p1 >/dev/null 2>&1
+retexit $? "FAT filesystem creation failed!"
+mkfs.ext4 /dev/loop0p2 >/dev/null 2>&1
+retexit $? "EXT4 filesystem creation failed!"
+
+#mount partitions
+mkdir -p p1 p2
+retexit $? "Directory creation failed!"
+mount /dev/loop0p1 p1
+retexit $? "Mount failed!"
+mount /dev/loop0p2 p2
+retexit $? "Mount failed!"
+
+#copy firmware files to fat
+echo "Creating partition 1..."
+cp $BRVER/output/images/zImage p1/kernel.img
+cp $BRVER/output/images/rpi-firmware/* p1/
+cp cmdline.txt p1/
+cp config.txt p1/
+
+#copy rootfs to root
+echo "Creating partition 2..."
+tar -xf $BRVER/output/images/rootfs.tar -C p2/
+cp -r rootskel/* p2/
+
+#unmount
+unmountimg
+MD5=`md5sum $IMGF | cut -d" " -f1`
+echo $SEP
+echo "Image file $IMGF ready!"
+echo "MD5SUM: $MD5"
+echo $SEP

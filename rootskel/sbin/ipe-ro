@@ -1,0 +1,7 @@
+#!/bin/sh
+#ipe-ro script for IPE2 by NutCom Services, Inc. 2013.
+#This software is GPLv2 licensed!
+#See http://nutcom.hu/ipe2/
+
+echo Remounting rootFS for R/O!
+mount / -o remount,ro
