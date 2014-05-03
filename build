@@ -32,6 +32,12 @@ unpackbr() {
  cp -v busybox-config $BRVER/$BUSYBOX_CONFIG
  UCLIBC_CONFIG=`grep BR2_UCLIBC_CONFIG buildroot-config | cut -d'"' -f2`
  cp -v uclibc-config $BRVER/$UCLIBC_CONFIG
+
+ echo "Patching buildroot..."
+ echo "    6LBR..."
+ patch -p0 < buildroot-package-6lbr.patch
+ echo "    Mosquitto..."
+ patch -p0 < buildroot-package-mosquitto.patch
 }
 
 #This downloads buildroot only

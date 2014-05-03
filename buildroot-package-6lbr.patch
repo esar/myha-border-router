@@ -1,0 +1,47 @@
+diff -ruN buildroot-2013.11-clean/package/6lbr/6lbr.mk buildroot-2013.11/package/6lbr/6lbr.mk
+--- buildroot-2013.11-clean/package/6lbr/6lbr.mk	1970-01-01 01:00:00.000000000 +0100
++++ buildroot-2013.11/package/6lbr/6lbr.mk	2014-04-20 13:25:38.461128433 +0100
+@@ -0,0 +1,23 @@
++6LBR_VERSION = 1.0
++6LBR_SOURCE = contiki-6blr-myha.tar.gz
++6LBR_SITE = /home/stephen/projects/hardware/ha/contiki-6lbr-myha
++6LBR_SITE_METHOD = local
++6LBR_DEPENDENCIES = ncurses
++
++define 6LBR_BUILD_CMDS
++	$(MAKE) CC="$(TARGET_CC)" LD="$(TARGET_CC)" -C $(@D)/examples/6lbr V=1 TARGET=native bin/cetic_6lbr_router
++endef
++
++define 6LBR_INSTALL_TARGET_CMDS
++	$(INSTALL) -d $(TARGET_DIR)/etc/6lbr
++	cp -r $(@D)/examples/6lbr/package/etc/6lbr/* $(TARGET_DIR)/etc/6lbr/
++	$(INSTALL) -D $(@D)/examples/6lbr/package/etc/6lbr/6lbr.conf.nooliberry $(TARGET_DIR)/etc/6lbr/6lbr.conf
++	$(INSTALL) -D $(@D)/examples/6lbr/package/etc/init.d/6lbr $(TARGET_DIR)/etc/init.d/S806lbr
++	$(INSTALL) -D $(@D)/examples/6lbr/package/usr/bin/* $(TARGET_DIR)/usr/bin/
++	$(INSTALL) -d $(TARGET_DIR)/usr/lib/6lbr
++	cp -r $(@D)/examples/6lbr/package/usr/lib/6lbr/* $(TARGET_DIR)/usr/lib/6lbr/
++        $(INSTALL) -d $(TARGET_DIR)/usr/lib/6lbr/bin
++	$(INSTALL) -D $(@D)/examples/6lbr/bin/* $(TARGET_DIR)/usr/lib/6lbr/bin/
++endef
++
++$(eval $(generic-package))
+diff -ruN buildroot-2013.11-clean/package/6lbr/Config.in buildroot-2013.11/package/6lbr/Config.in
+--- buildroot-2013.11-clean/package/6lbr/Config.in	1970-01-01 01:00:00.000000000 +0100
++++ buildroot-2013.11/package/6lbr/Config.in	2014-04-19 15:16:51.904539797 +0100
+@@ -0,0 +1,5 @@
++config BR2_PACKAGE_6LBR
++	bool "6lbr"
++	help
++		6lbr border router
++
+diff -ruN buildroot-2013.11-clean/package/Config.in buildroot-2013.11/package/Config.in
+--- buildroot-2013.11-clean/package/Config.in	2014-05-03 13:07:44.617972779 +0100
++++ buildroot-2013.11/package/Config.in	2014-04-20 14:41:07.716362130 +0100
+@@ -759,6 +759,7 @@
+ endmenu
+ 
+ menu "Networking applications"
++source "package/6lbr/Config.in"
+ source "package/aiccu/Config.in"
+ source "package/aircrack-ng/Config.in"
+ source "package/argus/Config.in"
